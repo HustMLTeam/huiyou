@@ -60,3 +60,12 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+#Images
+.jpg
+.jpeg
+.png
+
+#Videos
+.mp4
+.avi
