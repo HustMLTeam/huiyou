@@ -62,10 +62,10 @@ target/
 .ipynb_checkpoints
 
 #Images
-.jpg
-.jpeg
-.png
+*.jpg
+*.jpeg
+*.png
 
 #Videos
-.mp4
-.avi
+*.mp4
+*.avi
