@@ -1,10 +1,12 @@
+# coding: utf-8
+
 import numpy as np
 from cv2.xfeatures2d import SIFT_create
 from sklearn.cluster import KMeans
 from sklearn.externals import joblib
 import os
 
-from core.load import load_tube, load_window
+from load import load_tube, load_window
 
 
 class Sift(object):
@@ -46,3 +48,7 @@ class Sift(object):
         features = np.zeros(n_clusters)
         features[list(set(y))] = 1
         return features
+
+
+class Pca(object):
+    pass

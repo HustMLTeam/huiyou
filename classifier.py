@@ -4,12 +4,20 @@ import numpy as np
 from sklearn.svm import SVC
 from sklearn.grid_search import GridSearchCV
 from sklearn.externals import joblib
-from core.load import load_tube, load_window
+
 import os
+
+from load import load_tube, load_window
+import feature_extractor
 
 
 class Classifier(object):
-    def __init__(self):
+    def __init__(self, feature='sift'):
+        assert feature in ['sift', 'pca'], "feature should be 'sift' or 'pca'"
+        if feature == 'sift':
+            self.feature = feature_extractor.Sift()
+        elif feature == 'pca':
+            self.feature = feature_extractor.Pca()
         self.tube_file = None
         self.window_file = None
 
@@ -18,7 +26,9 @@ class Classifier(object):
             clf = joblib.load(self.tube_file)
         else:
             X, y = load_tube()
-            clf = self._train(X, y)
+            feature_extr = self.feature.tube()
+            X_new = feature_extr(X)
+            clf = self._train(X_new, y)
             joblib.dump(clf, self.tube_file)
         return clf.predict
 
@@ -27,7 +37,9 @@ class Classifier(object):
             clf = joblib.load(self.window_file)
         else:
             X, y = load_window()
-            clf = self._train(X, y)
+            feature_extr = self.feature.window()
+            X_new = feature_extr(X)
+            clf = self._train(X_new, y)
             joblib.dump(clf, self.window_file)
         return clf.predict
 
@@ -37,7 +49,7 @@ class Classifier(object):
 
 class Svm(Classifier):
     def __init__(self, feature='sift'):
-        assert feature in ['sift', 'pca'], "feature should be 'sift' or 'pca'"
+        super(self.__class__, self).__init__(feature)
         self.tube_file = 'data/pkl/tube_svm_%s.pkl' % feature
         self.window_file = 'data/pkl/window_svm_%s.pkl' % feature
 
