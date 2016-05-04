@@ -84,7 +84,7 @@ class SlideWinodw(object):
                 h_max = img_height if img_height < h_max else h_max
             else:
                 h_max = img_height
-            
+
             for h in range(h_min, h_max, self.h_inc):
                 for x_pos in range(0, img_width-w, self.x_step):
                     for y_pos in range(0, img_height-h, self.y_step):
