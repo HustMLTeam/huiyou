@@ -13,11 +13,9 @@ import feature_extractor
 
 class Classifier(object):
     def __init__(self, feature='sift'):
-        assert feature in ['sift', 'pca'], "feature should be 'sift' or 'pca'"
+        assert feature in ['sift'], "feature should be 'sift'"
         if feature == 'sift':
             feature = feature_extractor.Sift()
-        elif feature == 'pca':
-            feature = feature_extractor.Pca()
         self.tube_extr = feature.tube()
         self.window_extr = feature.window()
         self.tube_file = None
