@@ -45,8 +45,8 @@ class SlideWindow(object):
             If None if given, window's maximum height will decide by height_max.
     """
     def __init__(self, feature_extractor, classifier, decision, width_min=10,
-                 height_min=10, width_max=None, height_max=None, width_inc=3,
-                 height_inc=3, x_step=3, y_step=3, ratio_min=None, ratio_max=None):
+                 height_min=10, width_max=None, height_max=None, width_inc=10,
+                 height_inc=10, x_step=3, y_step=8, ratio_min=None, ratio_max=None):
         self.feature_extractor = feature_extractor
         self.classifier = classifier
         self.decision = decision
@@ -106,7 +106,7 @@ class SlideWindow(object):
                         window = image[y_pos:y_pos+h, x_pos:x_pos+w]
                         X = self.feature_extractor(window).reshape(1, -1)
                         if self.classifier(X)[0]:
-                            windows = np.vstack((windows, (x_pos, y_pos,
-                                                           x_pos+w, x_pos+h)))
+                            windows = np.vstack((windows, (y_pos, y_pos+h,
+                                                           x_pos, x_pos+w)))
         areas = self.decision(windows)
         return areas
