@@ -59,7 +59,7 @@ docs/_build/
 target/
 
 #Ipython Notebook
-.ipynb
+*.ipynb
 .ipynb_checkpoints
 
 #Images
@@ -73,3 +73,7 @@ target/
 
 #PyCharm
 .idea/
+
+#Pickle
+*.pkl
+*.npy
