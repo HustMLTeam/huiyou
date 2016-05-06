@@ -54,7 +54,7 @@ class Svm(Classifier):
     def _train(self, X, y):
         params = {
             'C': [1e2, 3e2, 1e3, 3e3, 1e4],
-            'gamma': [1e-5, 3e-5, 1e-4, 3e-4, 1e-3, 3e-3, 1e-2, 3e-2, 1e-1]
+            'gamma': [1e-5, 3e-5, 1e-4, 3e-4, 1e-3]
         }
         clf = GridSearchCV(SVC(), param_grid=params)
         clf.fit(X, y)
