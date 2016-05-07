@@ -39,7 +39,7 @@ class Sift(object):
         # Sometimes descriptor is None, turn it into np.ndarray type.
         descs = [d if isinstance(d, np.ndarray) else \
                  np.array([]).reshape(0, 128).astype('float32') for d in descs]
-        cluster = KMeans(n_clusters=self.n_clusters,
+        cluster = KMeans(n_clusters=self.n_clusters, n_jobs=-1,
                          random_state=42).fit(np.vstack(descs))
         return cluster
 
