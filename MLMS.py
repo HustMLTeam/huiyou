@@ -167,7 +167,7 @@ class MLMS(QtGui.QMainWindow, MLS.Ui_MainWindow):
             print('tube ok',i)
             #找小窗口
             self.windowPos = ImagePosition.getWindowPos(img[(int)(self.tubePos[i,0]):(int)(self.tubePos[i,1]), 
-                                                            (int)(self.tubePos[i,2]):(int)(self.tubePos[i,3]) ])
+                                                            (int)(self.tubePos[i,2]):(int)(self.tubePos[i,3]) ], 5+2*i)
             print(self.windowPos)
             for j in range(self.windowPos.shape[0]):
                 #从相对tube的窗口位置转换为相对img的窗口位置
