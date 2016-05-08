@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 import os
 import imghdr
 import cv2
@@ -160,19 +160,25 @@ class MLMS(QtGui.QMainWindow, MLS.Ui_MainWindow):
         #获取当前帧图像并转化为灰度图
         img = cv2.cvtColor(self.frame,cv2.COLOR_BGR2GRAY) 
         self.pos = ImagePosition.getImgPos(img)
-        #self.pos = np.array([[0,100,100,100],[200,100,100,200]])
-        self.drawBox(self.pos[0])
-        self.drawBox(self.pos[1])
+        print(self.pos)
+        #self.pos = np.array([[0,100,0,100],[200,300,100,200]])
+        self.drawBox(self.pos[0], self.pixmap.width()/img.shape[1], self.pixmap.height()/img.shape[0])
+        self.drawBox(self.pos[1], self.pixmap.width()/img.shape[1], self.pixmap.height()/img.shape[0])
+        print(img.shape)
         
             
                   
-    def drawBox(self, rect):
+    def drawBox(self, rect, xRatio=1, yRatio=1):
         '''handle errors'''
         if not self.pixmap:
             self.showErrMsg('Please choose an image first!')
             return
         
-        x, y, w, h = rect
+        x, y, w, h = rect[2], rect[0], rect[3]-rect[2], rect[1]-rect[0]
+        x *= xRatio
+        w *= xRatio
+        y *= yRatio
+        h *= yRatio
         '''x, y, w, h = self.line_x.text(), self.line_y.text(), self.line_w.text(),\
             self.line_h.text()'''
         '''if not (x.isdigit() and y.isdigit() and w.isdigit() and h.isdigit()):
@@ -195,6 +201,9 @@ class MLMS(QtGui.QMainWindow, MLS.Ui_MainWindow):
         else:
             painter = QPainter()
             painter.begin(self.pixmap)
+            #print(self.pixmap.size())
+            #print(self.pixmap.width())
+            #print(self.pixmap.height())
             #pen = QPen(QtCore.Qt.red, 5, QtCore.Qt.SolidLine)
             pen = QPen(QtCore.Qt.red, 1, QtCore.Qt.SolidLine)
             painter.setPen(pen)
@@ -262,7 +271,7 @@ def main():
     form.show()
     #exec_()线程事件循环
     sys.exit(app.exec_())
-    
+
 
 if __name__ == '__main__':
     main()
