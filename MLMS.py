@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import os
 import imghdr
 import cv2
@@ -159,11 +159,23 @@ class MLMS(QtGui.QMainWindow, MLS.Ui_MainWindow):
             return
         #获取当前帧图像并转化为灰度图
         img = cv2.cvtColor(self.frame,cv2.COLOR_BGR2GRAY) 
-        self.pos = ImagePosition.getImgPos(img)
-        print(self.pos)
-        #self.pos = np.array([[0,100,0,100],[200,300,100,200]])
-        self.drawBox(self.pos[0], self.pixmap.width()/img.shape[1], self.pixmap.height()/img.shape[0])
-        self.drawBox(self.pos[1], self.pixmap.width()/img.shape[1], self.pixmap.height()/img.shape[0])
+        self.tubePos = ImagePosition.getTubePos(img)
+        print(self.tubePos)
+        #self.tubePos = np.array([[0,100,0,100],[200,300,100,200]])
+        for i in range(self.tubePos.shape[0]):
+            self.drawBox(self.tubePos[i], self.pixmap.width()/img.shape[1], self.pixmap.height()/img.shape[0])
+            print('tube ok',i)
+            #找小窗口
+            self.windowPos = ImagePosition.getWindowPos(img[(int)(self.tubePos[i,0]):(int)(self.tubePos[i,1]), 
+                                                            (int)(self.tubePos[i,2]):(int)(self.tubePos[i,3]) ])
+            print(self.windowPos)
+            for j in range(self.windowPos.shape[0]):
+                #从相对tube的窗口位置转换为相对img的窗口位置
+                self.windowPos[j,0] += self.tubePos[i,0]
+                self.windowPos[j,1] += self.tubePos[i,0]
+                self.windowPos[j,2] += self.tubePos[i,2]
+                self.windowPos[j,3] += self.tubePos[i,2]
+                self.drawBox(self.windowPos[j], self.pixmap.width()/img.shape[1], self.pixmap.height()/img.shape[0])
         print(img.shape)
         
             
