@@ -14,13 +14,14 @@ def getTubePos(img):
     tubePos = s_win.slide(img)
     return tubePos
 
-def getWindowPos(tube): 
+def getWindowPos(tube, n):
     feature_extractor = Sift().window()
     classifier = Svm().window()
-    decision = max_cover(6)
-    s_win = SlideWindow(feature_extractor, classifier, decision, width_min=10,
-                        width_max=20, width_inc=1, height_min=30,
-                        height_max=50, height_inc=2, x_step=2, y_step=4)
+    decision = max_cover(n)
+    s_win = SlideWindow(feature_extractor, classifier, decision, width_min=13,
+                        width_max=27, width_inc=3, height_min=25,
+                        height_max=40, height_inc=3, x_step=3, y_step=4,
+                        ratio_min=1.3, ratio_max=2.2)
     windowPos = s_win.slide(tube)
     return windowPos
 
