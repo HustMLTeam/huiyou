@@ -38,6 +38,7 @@ def min_cover(n):
 
 def average_cover(n):
     def dec(X):
+        return X
         cluster = KMeans(n, random_state=42, n_jobs=-1)
         y = cluster.fit_predict(X)
         result = []

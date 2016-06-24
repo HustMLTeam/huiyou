@@ -1,8 +1,9 @@
 from classifier import Svm
 from feature_extractor import Sift
 from slide_window import SlideWindow
-from decision import max_cover
+from decision import max_cover, average_cover
 import cv2
+
 
 def getTubePos(img):
     feature_extractor = Sift().tube()
@@ -14,10 +15,11 @@ def getTubePos(img):
     tubePos = s_win.slide(img)
     return tubePos
 
+
 def getWindowPos(tube, n):
     feature_extractor = Sift().window()
     classifier = Svm().window()
-    decision = max_cover(n)
+    decision = average_cover(n)
     s_win = SlideWindow(feature_extractor, classifier, decision, width_min=13,
                         width_max=27, width_inc=3, height_min=25,
                         height_max=40, height_inc=3, x_step=3, y_step=4,

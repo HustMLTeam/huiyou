@@ -116,7 +116,7 @@ class MLMS(QtGui.QMainWindow, MLS.Ui_MainWindow):
         if self.thread:
             self.thread.terminate()
     
-    #播放一帧视频
+    # 播放一帧视频
     def drawFrame(self):
         if self.success:
             #cv2所得图像和qt的QImage图像的第一和第三通道不对应，应对调
