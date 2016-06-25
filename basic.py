@@ -13,13 +13,13 @@ import os
 
 
 class FeatureExtractor(object):
-    def __init__(self, file=None):
-        # initial cluster from file
-        if os.path.isfile(file):
-            self.cluster = joblib.load(file)
-        else:
-            self.cluster = None
+    def __init__(self, method):
+        self.method = method
         self.sift = SIFT_create()
+        self.cluster = None
+
+    def load_cluster(self, file):
+        self.cluster = joblib.load(file)
 
     def is_initialized(self):
         if self.cluster:
@@ -27,11 +27,19 @@ class FeatureExtractor(object):
         else:
             return False
 
-    def train(self):
-        if not self.is_initialized():
-            self.retrain()
+    def train(self, images, n_clusters=500):
+        if self.method == 'sift':
+            self.sift_train(images, n_clusters)
+        else:
+            self.lbp_train(images)
 
-    def retrain(self, images, n_clusters=500, n_jobs=-1):
+    def extract(self, image):
+        if self.method == 'sift':
+            return self.sift_extract(image)
+        else:
+            return self.lbp_extract(image)
+
+    def sift_train(self, images, n_clusters=500, n_jobs=-1):
         descs = np.array([self.sift.detectAndCompute(img, None)[1] for img in images])
         # Sometimes descriptor is None, turn it into np.ndarray type.
         descs = [d if isinstance(d, np.ndarray) else
@@ -39,11 +47,7 @@ class FeatureExtractor(object):
         self.cluster = KMeans(n_clusters=n_clusters, n_jobs=n_jobs,
                               random_state=42).fit(np.vstack(descs))
 
-    def save(self, path):
-        joblib.dump(self.cluster, filename=path)
-        print("Save to ", os.path.abspath(path), "Success!")
-
-    def extract(self, image):
+    def sift_extract(self, image):
         # extract features from an image.
         assert self.cluster, "self.cluster should be initial!"
         n_clusters = self.cluster.n_clusters
@@ -55,11 +59,18 @@ class FeatureExtractor(object):
         features[list(set(y))] = 1
         return features
 
+    def lbp_train(self, images):
+        pass
+
+    def lbp_extract(self, image):
+        pass
+
 
 class Classifier(object):
-    def __init__(self, file=None):
+    def __init__(self, classify_method='svm', file=None):
+        self.classify_method = classify_method
         # initial classifier from file
-        if os.path.isfile(file):
+        if file:
             self.clf = joblib.load(file)
         else:
             self.clf = None
@@ -83,10 +94,6 @@ class Classifier(object):
         print(self.clf.best_estimator_)
         y_pred = self.clf.predict(X_test)
         print(classification_report(y_test, y_pred))
-
-    def save(self, path):
-        joblib.dump(self.clf, filename=path)
-        print("Save to ", os.path.abspath(path), "Success!")
 
     def classify(self, features):
         return self.clf.predict(features)

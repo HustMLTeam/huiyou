@@ -17,13 +17,13 @@ class LevelDetector(object):
             self.classify_method = 'svm'
 
         self.tube_extractor = FeatureExtractor('data/pkl/tube_%s.pkl' %
-                                               (self.extract_method))
+                                               self.extract_method)
         self.window_extractor = FeatureExtractor('data/pkl/window_%s.pkl' %
-                                                 (self.extract_method))
+                                                 self.extract_method)
         self.tube_classifier = Classifier('data/pkl/tube_%s_%s.pkl' %
-                                          (self.extract_method, self.classify_method))
+                                    (self.extract_method, self.classify_method))
         self.window_classifier = Classifier('data/pkl/window_%s_%s.pkl' %
-                                            self.extract_method, self.classify_method)
+                                    (self.extract_method, self.classify_method))
 
     def locate_tube(self, image):
         height, width = image.shape
@@ -33,7 +33,11 @@ class LevelDetector(object):
                 yield (y_start, y_end, x_start, x_end)
 
     def locate_window(self, tube):
-        pass
+        height, width = tube.shape
+        for y_start, y_end, x_start, x_end in slide_window(width, height):
+            feature = self.tube_extractor.extract(tube[y_start:y_end, x_start:x_end])
+            if self.tube_classifier.classify(feature):
+                yield (y_start, y_end, x_start, x_end)
 
     def locate_level(self):
         pass
