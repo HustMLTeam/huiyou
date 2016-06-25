@@ -3,7 +3,7 @@
 
 def slide_window(img_width, img_height, width_min=10, height_min=10,
                  width_max=None, height_max=None, width_inc=10, height_inc=10,
-                 x_step=3, y_step=8, ratio_min=None, ratio_max=None):
+                 x_step=3, y_step=3, ratio_min=None, ratio_max=None):
     """
     Produce slide_windows with given conditions.
 
