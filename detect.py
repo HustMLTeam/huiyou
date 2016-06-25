@@ -44,12 +44,11 @@ class LevelDetector(object):
         positions = []
         height, width = tube.shape
         for y_start, y_end, x_start, x_end in slide_window(width, height,
-                                width_min=14, width_max=25, width_inc=2,
-                                height_min=26, height_max=39, height_inc=2,
-                                x_step=2, y_step=2,
-                                ratio_min=1.3, ratio_max=2.2):
+                                width_min=12, width_max=28, width_inc=2,
+                                height_min=23, height_max=43, height_inc=2,
+                                x_step=2, y_step=2):
             img = tube[y_start:y_end, x_start:x_end]
-            # img = ((img - img.min()) / (img.max() - img.min()) * 255).astype('uint8')
+            img = ((img - img.min()) / (img.max() - img.min()) * 255).astype('uint8')
             feature = self.tube_extractor.extract(img)
             if self.tube_classifier.classify(feature.reshape(1, -1)):
                 positions.append((y_start, y_end, x_start, x_end))

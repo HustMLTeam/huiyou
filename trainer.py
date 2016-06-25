@@ -30,7 +30,7 @@ class Trainer(object):
     def train_window_extractor(self):
         if not self.window_x:
             self.load_window()
-        self.window_extrct.train(self.window_x, n_clusters=800)
+        self.window_extrct.train(self.window_x, n_clusters=500)
         joblib.dump(self.window_extrct.cluster, 'data/pkl/window_%s.pkl' % self.extract_method)
         print('Window extractor has been trained and saved to "data/pkl".')
 
@@ -48,8 +48,8 @@ class Trainer(object):
     def train_window_classifier(self):
         if self.window_x is None:
             self.load_window()
-        if not self.window_extrct.is_initialized():
-            self.window_extrct.load_cluster('data/pkl/window_%s.pkl' % self.extract_method)
+        if self.extract_method == 'sift' and not self.window_extrct.is_initialized():
+                self.window_extrct.load_cluster('data/pkl/window_%s.pkl' % self.extract_method)
         window_x = np.array([self.window_extrct.extract(img) for img in self.window_x])
         self.window_clf.train(window_x, self.window_y)
         joblib.dump(self.window_clf.clf, 'data/pkl/window_%s_%s.pkl' %
@@ -60,9 +60,11 @@ class Trainer(object):
         self.tube_x, self.tube_y = self.load_data('data/tube/pos', 'data/tube/neg')
 
     def load_window(self):
-        # 直方图均衡化
         self.window_x, self.window_y = self.load_data('data/window/pos', 'data/window/neg')
-        # self.window_x = np.array([((img - img.min()) / (img.max() - img.min()) * 255).astype('uint8') for img in self.window_x])
+        # 直方图均衡化
+        if self.extract_method == 'sift':
+            self.window_x = np.array([((img - img.min()) / (img.max() -
+                    img.min()) * 255).astype('uint8') for img in self.window_x])
 
     def load_data(self, posdir, negdir):
         pos_files = [os.path.join(posdir, f) for f in os.listdir(posdir)]
