@@ -63,7 +63,7 @@ class FeatureExtractor(object):
         return features
 
     def lbp_extract(self, image):
-        width, height = image.shape
+        height, width = image.shape
         w = width // 2
         h = height // 3
         feature = np.array([])
