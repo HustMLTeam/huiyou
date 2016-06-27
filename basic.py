@@ -9,60 +9,76 @@ from sklearn.svm import SVC
 # from sklearn.metrics import classification_report
 # from sklearn.cross_validation import train_test_split
 from sklearn.externals import joblib
+from sklearn.decomposition import PCA
 
 
 class FeatureExtractor(object):
     def __init__(self, method='sift', file=None):
         self.method = method
-        if file is None:
-            self.cluster = None
-        else:
-            self.load_cluster(file)
+        self.red = None
+        if self.method == 'sift':
+            self.train = self.sift_train
+            self.extract = self.sift_extract
+        elif self.method == 'lbp':
+            self.train = self.lbp_train
+            self.extract = self.lbp_extract
+        if file is not None:
+            self.load(file)
 
-    def load_cluster(self, file):
-        self.cluster = joblib.load(file)
+    def load(self, file):
+        self.red = joblib.load(file)
 
     def is_initialized(self):
-        if self.cluster:
+        if self.red:
             return True
         else:
             return False
 
-    def train(self, images, n_clusters=500):
-        if self.method == 'sift':
-            self.sift_train(images, n_clusters)
-        else:
-            pass
-
-    def extract(self, image):
-        if self.method == 'sift':
-            return self.sift_extract(image)
-        else:
-            return self.lbp_extract(image)
-
-    def sift_train(self, images, n_clusters=500, n_jobs=-1):
+    def sift_train(self, images, n_clusters=120, n_jobs=-1):
         sift = SIFT_create()
         descs = np.array([sift.detectAndCompute(img, None)[1] for img in images])
         # Sometimes descriptor is None, turn it into np.ndarray type.
         descs = [d if isinstance(d, np.ndarray) else
                 np.array([]).reshape(0, 128).astype('float32') for d in descs]
-        self.cluster = KMeans(n_clusters=n_clusters, n_jobs=n_jobs,
-                              random_state=42).fit(np.vstack(descs))
+        self.red = KMeans(n_clusters=n_clusters, n_jobs=n_jobs,
+                          random_state=42).fit(np.vstack(descs))
 
     def sift_extract(self, image):
         # extract features from an image.
-        assert self.cluster, "self.cluster should be initial!"
-        n_clusters = self.cluster.n_clusters
+        assert self.red, "self.red should be initial!"
+        n_clusters = self.red.n_clusters
         features = np.zeros(n_clusters)
         sift = SIFT_create()
         descriptors = sift.detectAndCompute(image, None)[1]
         if descriptors is None:
             return features
-        y = self.cluster.predict(descriptors)
+        y = self.red.predict(descriptors)
         features[list(set(y))] = 1
         return features
 
+    def lbp_train(self, images, n_components=0.95):
+        X = np.array([]).reshape(0, 1536)
+        for img in images:
+            height, width = img.shape
+            w = width // 2
+            h = height // 3
+            feature = np.array([])
+            for i in range(2):
+                for j in range(3):
+                    cell = img[h * j:h * (j + 1), w * i:w * (i + 1)]
+                    lbp = local_binary_pattern(cell, 8, 1)
+                    histogram = np.zeros(256)
+                    for pattern in lbp.ravel():
+                        histogram[int(pattern)] += 1
+                    histogram = (histogram - histogram.mean()) / histogram.std()
+                    feature = np.hstack((feature, histogram))
+            X = np.vstack((X, feature))
+        self.red = PCA(n_components=n_components)
+        self.red.fit(X)
+
     def lbp_extract(self, image):
+        # extract features from an image using lbp
+        assert self.red, "self.red should be initial!"
         height, width = image.shape
         w = width // 2
         h = height // 3
@@ -70,13 +86,14 @@ class FeatureExtractor(object):
         for i in range(2):
             for j in range(3):
                 cell = image[h*j:h*(j+1), w*i:w*(i+1)]
-                lbp = local_binary_pattern(cell, 20, 2, method='uniform')
-                histogram = np.zeros(22)
+                lbp = local_binary_pattern(cell, 8, 1)
+                histogram = np.zeros(256)
                 for pattern in lbp.ravel():
                     histogram[int(pattern)] += 1
                 histogram = (histogram - histogram.mean()) / histogram.std()
                 feature = np.hstack((feature, histogram))
-        return feature
+        feature = self.red.transform(feature.reshape(1, -1))
+        return feature.ravel()
 
 
 class Classifier(object):
@@ -114,7 +131,8 @@ class Decision(object):
 
     def _max_cover(self, X, n):
         cluster = KMeans(n, random_state=42, n_jobs=-1)
-        y = cluster.fit_predict(X)
+        X_new = np.vstack((X[:, 0] + X[:, 1], X[:, 2] + X[:, 3])).T
+        y = cluster.fit_predict(X_new)
         result = []
         for i in range(n):
             y_start = X[y == i][:, 0].min()
@@ -122,12 +140,12 @@ class Decision(object):
             x_start = X[y == i][:, 2].min()
             x_end = X[y == i][:, 3].max()
             result.append((y_start, y_end, x_start, x_end))
-        result.sort(key=lambda l: l[2])
         return np.array(result).astype('int64')
 
     def _min_cover(self, X, n):
         cluster = KMeans(n, random_state=42, n_jobs=-1)
-        y = cluster.fit_predict(X)
+        X_new = np.vstack((X[:, 0] + X[:, 1], X[:, 2] + X[:, 3])).T
+        y = cluster.fit_predict(X_new)
         result = []
         for i in range(n):
             y_start = X[y == i][:, 0].max()
@@ -135,12 +153,12 @@ class Decision(object):
             x_start = X[y == i][:, 2].max()
             x_end = X[y == i][:, 3].min()
             result.append((y_start, y_end, x_start, x_end))
-        result.sort(key=lambda l: l[2])
         return np.array(result).astype('int64')
 
     def _average_cover(self, X, n):
         cluster = KMeans(n, random_state=42, n_jobs=-1)
-        y = cluster.fit_predict(X)
+        X_new = np.vstack((X[:, 0] + X[:, 1], X[:, 2] + X[:, 3])).T
+        y = cluster.fit_predict(X_new)
         result = []
         for i in range(n):
             y_start = X[y == i][:, 0].mean()
@@ -148,5 +166,4 @@ class Decision(object):
             x_start = X[y == i][:, 2].mean()
             x_end = X[y == i][:, 3].mean()
             result.append((y_start, y_end, x_start, x_end))
-        result.sort(key=lambda l: l[2])
         return np.array(result).astype('int64')

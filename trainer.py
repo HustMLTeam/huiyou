@@ -21,24 +21,25 @@ class Trainer(object):
         self.window_clf = Classifier(classify_method)
 
     def train_tube_extractor(self):
-        if not self.tube_x:
+        if self.tube_x is None:
             self.load_tube()
-        self.tube_extrct.train(self.tube_x)
-        joblib.dump(self.tube_extrct.cluster, 'data/pkl/tube_%s.pkl' % self.extract_method)
+        self.tube_extrct.train(self.tube_x, n_components=500)
+        joblib.dump(self.tube_extrct.red, 'data/pkl/tube_%s.pkl' % self.extract_method)
         print('Tube extractor has been trained and saved to "data/pkl".')
 
     def train_window_extractor(self):
-        if not self.window_x:
+        if self.window_x is None:
             self.load_window()
-        self.window_extrct.train(self.window_x, n_clusters=500)
-        joblib.dump(self.window_extrct.cluster, 'data/pkl/window_%s.pkl' % self.extract_method)
+
+        self.window_extrct.train(self.window_x)
+        joblib.dump(self.window_extrct.red, 'data/pkl/window_%s.pkl' % self.extract_method)
         print('Window extractor has been trained and saved to "data/pkl".')
 
     def train_tube_classifier(self):
-        if not self.tube_x:
+        if self.tube_x is None:
             self.load_tube()
         if not self.tube_extrct.is_initialized():
-            self.tube_extrct.load_cluster('data/pkl/tube_%s.pkl' % self.extract_method)
+            self.tube_extrct.load('data/pkl/tube_%s.pkl' % self.extract_method)
         tube_X = np.array([self.tube_extrct.extract(img) for img in self.tube_x])
         self.tube_clf.train(tube_X, self.tube_y)
         joblib.dump(self.tube_clf.clf, 'data/pkl/tube_%s_%s.pkl' %
@@ -48,8 +49,8 @@ class Trainer(object):
     def train_window_classifier(self):
         if self.window_x is None:
             self.load_window()
-        if self.extract_method == 'sift' and not self.window_extrct.is_initialized():
-                self.window_extrct.load_cluster('data/pkl/window_%s.pkl' % self.extract_method)
+        if self.window_extrct.is_initialized():
+            self.window_extrct.load('data/pkl/window_%s.pkl' % self.extract_method)
         window_x = np.array([self.window_extrct.extract(img) for img in self.window_x])
         self.window_clf.train(window_x, self.window_y)
         joblib.dump(self.window_clf.clf, 'data/pkl/window_%s_%s.pkl' %
