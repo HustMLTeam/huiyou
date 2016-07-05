@@ -1,9 +1,11 @@
 # coding: utf-8
 
+from basic import FeatureExtractor, Classifier
+
 import os
 import numpy as np
 from scipy import misc
-from basic import FeatureExtractor, Classifier
+import cv2
 from sklearn.externals import joblib
 
 
@@ -23,7 +25,7 @@ class Trainer(object):
     def train_tube_extractor(self):
         if self.tube_x is None:
             self.load_tube()
-        self.tube_extrct.train(self.tube_x, n_components=500)
+        self.tube_extrct.train(self.tube_x, 500)
         joblib.dump(self.tube_extrct.red, 'data/pkl/tube_%s.pkl' % self.extract_method)
         print('Tube extractor has been trained and saved to "data/pkl".')
 
@@ -64,8 +66,7 @@ class Trainer(object):
         self.window_x, self.window_y = self.load_data('data/window/pos', 'data/window/neg')
         # 直方图均衡化
         if self.extract_method == 'sift':
-            self.window_x = np.array([((img - img.min()) / (img.max() -
-                    img.min()) * 255).astype('uint8') for img in self.window_x])
+            self.window_x = np.array([cv2.equalizeHist(img) for img in self.window_x])
 
     def load_data(self, posdir, negdir):
         pos_files = [os.path.join(posdir, f) for f in os.listdir(posdir)]

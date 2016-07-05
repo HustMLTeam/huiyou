@@ -29,21 +29,20 @@ class LevelDetector(object):
 
     # 在图片上定位液位仪
     def locate_tube(self, image):
-        positions = [] # 保存液位仪的位置，格式为(y_start, y_end, x_start, x_end)
+        positions = []  # 保存液位仪的位置，格式为(y_start, y_end, x_start, x_end)
         height, width = image.shape
         for y_start, y_end, x_start, x_end in slide_window(140, height,
                                 width_min=22, width_max=32, width_inc=3,
                                 height_min=200, height_max=240, height_inc=5,
                                 ratio_min=7, ratio_max=9):
             feature = self.tube_extractor.extract(image[y_start:y_end, x_start:x_end])  # 提取特征
-            if self.tube_classifier.classify(feature.reshape(1, -1)):  # 进行分类
+            if self.tube_classifier.classify(feature.reshape(1, -1)):                   # 进行分类
                 positions.append((y_start, y_end, x_start, x_end))
-                # print('find position [%d:%d, %d:%d]' % (y_start, y_end, x_start, x_end))
+                print('find position [%d:%d, %d:%d]' % (y_start, y_end, x_start, x_end))
         # 在大量找到的区域中选出合适的结果
         dec = Decision('max')
         return dec.decide(np.array(positions), 2)
 
-    # 在液位仪上定位窗口
     def locate_window(self, tube, n_clusters, norm=False):
         positions = []
         height, width = tube.shape
