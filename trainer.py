@@ -23,6 +23,7 @@ class Trainer(object):
         self.window_clf = Classifier(classify_method)
 
     def train_tube_extractor(self):
+        """训练液位仪特征提取器"""
         if self.tube_x is None:
             self.load_tube()
         self.tube_extrct.train(self.tube_x, 500)
@@ -30,6 +31,7 @@ class Trainer(object):
         print('Tube extractor has been trained and saved to "data/pkl".')
 
     def train_window_extractor(self):
+        """训练窗口特征提取器"""
         if self.window_x is None:
             self.load_window()
 
@@ -38,6 +40,7 @@ class Trainer(object):
         print('Window extractor has been trained and saved to "data/pkl".')
 
     def train_tube_classifier(self):
+        """训练液位仪分类器"""
         if self.tube_x is None:
             self.load_tube()
         if not self.tube_extrct.is_initialized():
@@ -49,6 +52,7 @@ class Trainer(object):
         print('Tube classifier has been trained and saved to "data/pkl".')
 
     def train_window_classifier(self):
+        """训练窗口分类器"""
         if self.window_x is None:
             self.load_window()
         if self.window_extrct.is_initialized():
@@ -60,9 +64,11 @@ class Trainer(object):
         print('Window classifier has been trained and saved to "data/pkl"')
 
     def load_tube(self):
+        """加载液位仪的正负样本"""
         self.tube_x, self.tube_y = self.load_data('data/tube/pos', 'data/tube/neg')
 
     def load_window(self):
+        """加载窗口的正负样本"""
         self.window_x, self.window_y = self.load_data('data/window/pos', 'data/window/neg')
         # 直方图均衡化
         if self.extract_method == 'sift':
