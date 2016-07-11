@@ -78,3 +78,10 @@ target/
 *.pkl
 *.npy
 
+#Temperate file
+*.py~
+*.un~
+
+#Test file
+test.py
+test.ipynb
