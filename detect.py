@@ -4,6 +4,7 @@ from basic import FeatureExtractor, Classifier, Decision
 from slide_window import slide_window
 
 import numpy as np
+from scipy.signal import convolve2d
 import cv2
 
 
@@ -59,9 +60,22 @@ class LevelDetector(object):
             feature = self.window_extractor.extract(img)
             if self.window_classifier.classify(feature.reshape(1, -1)):
                 positions.append((y_start, y_end, x_start, x_end))
-                # print('find position [%d:%d, %d:%d]' % (y_start, y_end, x_start, x_end))
         dec = Decision('average')
         return dec.decide(np.array(positions), n_clusters)
+
+    def locate_scale(self, ruler):
+        sobel = cv2.Sobel(ruler, cv2.CV_16S, 0, 1)
+        sobel = np.where(sobel < -50, 255, 0)
+        sobel_bl = self.median_filter(sobel)
+        upper_scale = np.median(np.where(sobel_bl[75:125] == 255)[0])
+        lower_scale = np.median(np.where(sobel_bl[175:225] == 255)[0])
+        return upper_scale, lower_scale
+
+    @staticmethod
+    def median_filter(src):
+        result = convolve2d(src, np.ones((1, 5)) / 5, mode='same')
+        result = np.where(result > 200, 255, 0).astype('uint8')
+        return result
 
     def locate_level(self):
         pass
