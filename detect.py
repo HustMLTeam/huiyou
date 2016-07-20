@@ -76,6 +76,3 @@ class LevelDetector(object):
         result = convolve2d(src, np.ones((1, 5)) / 5, mode='same')
         result = np.where(result > 200, 255, 0).astype('uint8')
         return result
-
-    def locate_level(self):
-        pass
