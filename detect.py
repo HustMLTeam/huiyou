@@ -8,7 +8,7 @@ from scipy.signal import convolve2d
 import cv2
 
 
-class LevelDetector(object):
+class Locator(object):
     def __init__(self, tube_extract='sift', tube_classify='svm',
                  window_extract='lbp', window_classify='svm'):
         # 确保参数正确，参数为特征提取和分类的方法
