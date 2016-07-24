@@ -1,6 +1,7 @@
 # coding: utf-8
 
 import numpy as np
+from scipy.signal import convolve2d
 from skimage.feature import local_binary_pattern
 from cv2.xfeatures2d import SIFT_create
 from sklearn.cluster import KMeans
@@ -151,7 +152,7 @@ class Decision(object):
             x_start = X[y == i][:, 2].min()
             x_end = X[y == i][:, 3].max()
             result.append((y_start, y_end, x_start, x_end))
-        return np.array(result).astype('int64')
+        return result
 
     def _min_cover(self, X, n):
         """最小覆盖"""
@@ -165,7 +166,7 @@ class Decision(object):
             x_start = X[y == i][:, 2].max()
             x_end = X[y == i][:, 3].min()
             result.append((y_start, y_end, x_start, x_end))
-        return np.array(result).astype('int64')
+        return result
 
     def _average_cover(self, X, n):
         """平均覆盖"""
@@ -179,4 +180,10 @@ class Decision(object):
             x_start = X[y == i][:, 2].mean()
             x_end = X[y == i][:, 3].mean()
             result.append((y_start, y_end, x_start, x_end))
-        return np.array(result).astype('int64')
+        return result
+
+
+def horizontal_filter(src):
+    result = convolve2d(src, np.ones((1, 5)) / 5, mode='same')
+    result = np.where(result > 200, 255, 0).astype('uint8')
+    return result

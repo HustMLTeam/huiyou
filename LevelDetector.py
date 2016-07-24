@@ -1,7 +1,11 @@
+# coding: utf-8
+
 import numpy as np
 from scipy.signal import convolve2d
 import cv2
 from collections import deque
+
+from basic import horizontal_filter
 
 
 class LevelDetector(object):
@@ -125,14 +129,8 @@ class LevelDetector(object):
                                    [-1, -1, -1, -1, -1, -1, -1, -1],
                                    [-1, -1, -1, -1, -1, -1, -1, -1]]) / 32, mode='same'))
 
-        filtered = LevelDetector.median_filter(np.where(conv>15, 255, 0))
+        filtered = horizontal_filter(np.where(conv > 15, 255, 0))
         upper_scale = np.median(np.where(filtered[75:125] == 255)[0]) + 75
         lower_scale = np.median(np.where(filtered[175:225] == 255)[0]) + 175
 
         return upper_scale, lower_scale
-
-    @staticmethod
-    def median_filter(src):
-        result = convolve2d(src, np.ones((1, 5)) / 5, mode='same')
-        result = np.where(result > 200, 255, 0).astype('uint8')
-        return result

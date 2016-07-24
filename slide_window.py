@@ -63,4 +63,4 @@ def slide_window(img_width, img_height, width_min=10, height_min=10,
             for x_pos in range(0, img_width - w, x_step):
                 for y_pos in range(0, img_height - h, y_step):
                     # produce every window
-                    yield (y_pos, y_pos + h, x_pos, x_pos + w)
+                    yield (x_pos, y_pos, w, h)
