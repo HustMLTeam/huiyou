@@ -8,7 +8,7 @@ from basic import horizontal_filter
 
 
 class Detector(object):
-    def __init__(self, tube_pos, window_pos, scale, init_level):
+    def __init__(self, tube_pos, window_pos, scale, init_level, threshold):
         self.tube_pos = tube_pos
 
         self.window_pos = []
@@ -27,6 +27,7 @@ class Detector(object):
 
         self.upper_scale, self.lower_scale = scale
         self.init_level = init_level
+        self.threshold = threshold
 
         self.levels = deque([self.init_level] * 40, maxlen=40)
 
@@ -88,7 +89,7 @@ class Detector(object):
                     white = y2 + y_start
                 else:
                     sobel = cv2.Sobel(foreground[y1:y2], cv2.CV_16S, 0, 1)
-                    threshold = max(self.backgrounds[i].std() * 2.5, 30)
+                    threshold = max(self.backgrounds[i].std() * 2.5, self.threshold)
                     if y_start < self.init_level:
                         sobel = np.where(sobel > threshold, 255, 0).astype('uint8')
                     else:

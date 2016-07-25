@@ -31,8 +31,8 @@ if __name__ == '__main__':
                            [219, 244, 95, 107]]]
             loc.scale = [[110, 200], [103, 200]]
 
-            tube0 = Detector(loc.tube[0], loc.window[0], loc.scale[0], 220)
-            tube1 = Detector(loc.tube[1], loc.window[1], loc.scale[1], 160)
+            tube0 = Detector(loc.tube[0], loc.window[0], loc.scale[0], 220, 50)
+            tube1 = Detector(loc.tube[1], loc.window[1], loc.scale[1], 160, 33)
         tube0.feed(frame)
         tube1.feed(frame)
         if not count % 20:
