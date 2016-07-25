@@ -46,7 +46,7 @@ class Locator(object):
                 positions.append((y_start, y_end, x_start, x_end))
         # 在大量找到的区域中选出合适的结果
         dec = Decision('max')
-        result = dec.decide(np.array(positions))
+        result = dec.decide(np.array(positions), 2)
         self.tube = sorted(result, key=lambda t: t[2])
 
     # 在液位仪上定位窗口

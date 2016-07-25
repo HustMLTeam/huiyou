@@ -151,7 +151,7 @@ class Decision(object):
             y_end = X[y == i][:, 1].max()
             x_start = X[y == i][:, 2].min()
             x_end = X[y == i][:, 3].max()
-            result.append((y_start, y_end, x_start, x_end))
+            result.append((int(y_start), int(y_end), int(x_start), int(x_end)))
         return result
 
     def _min_cover(self, X, n):
@@ -165,7 +165,7 @@ class Decision(object):
             y_end = X[y == i][:, 1].min()
             x_start = X[y == i][:, 2].max()
             x_end = X[y == i][:, 3].min()
-            result.append((y_start, y_end, x_start, x_end))
+            result.append((int(y_start), int(y_end), int(x_start), int(x_end)))
         return result
 
     def _average_cover(self, X, n):
@@ -179,7 +179,7 @@ class Decision(object):
             y_end = X[y == i][:, 1].mean()
             x_start = X[y == i][:, 2].mean()
             x_end = X[y == i][:, 3].mean()
-            result.append((y_start, y_end, x_start, x_end))
+            result.append((int(y_start), int(y_end), int(x_start), int(x_end)))
         return result
 
 

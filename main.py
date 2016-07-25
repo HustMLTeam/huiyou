@@ -15,21 +15,9 @@ if __name__ == '__main__':
         ret, frame = cap.read()
         if loc is None:
             loc = Locator(frame)
-            loc.tube = [[0, 271, 33, 70],
-                        [0, 271, 78, 115]]
-            loc.window = [[[49, 77, 48, 61],
-                           [85, 112, 46, 58],
-                           [121, 148, 45, 56],
-                           [159, 183, 47, 56],
-                           [192, 216, 47, 59]],
-                          [[5, 33, 92, 105],
-                           [40, 68, 90, 103],
-                           [76, 105, 89, 101],
-                           [113, 141, 89, 101],
-                           [150, 177, 90, 102],
-                           [185, 210, 92, 104],
-                           [219, 244, 95, 107]]]
-            loc.scale = [[110, 200], [103, 200]]
+            loc.locate_tube()
+            loc.locate_window()
+            loc.locate_scale()
 
             tube0 = Detector(loc.tube[0], loc.window[0], loc.scale[0], 220, 50)
             tube1 = Detector(loc.tube[1], loc.window[1], loc.scale[1], 160, 33)
