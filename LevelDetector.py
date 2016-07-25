@@ -1,7 +1,6 @@
 # coding: utf-8
 
 import numpy as np
-from scipy.signal import convolve2d
 import cv2
 from collections import deque
 
@@ -13,13 +12,18 @@ class Detector(object):
         self.tube_pos = tube_pos
 
         self.window_pos = []
-        for pos in reversed(window_pos):
-            y_start, y_end, x_start, x_end = pos
-            if y_start < init_level < y_end:
-                self.window_pos.append([init_level + 1, y_end, x_start, x_end])
-                self.window_pos.append([y_start, init_level, x_start, x_end])
+        for y_start, y_end, x_start, x_end in reversed(window_pos):
+            avg = int((y_start + y_end) / 2)
+            y1 = avg - 12
+            y2 = avg + 12
+            avg = int((x_start + x_end) / 2)
+            x1 = avg - 4
+            x2 = avg + 4
+            if y1 < init_level < y2:
+                self.window_pos.append([init_level + 1, y2, x1, x2])
+                self.window_pos.append([y1, init_level, x1, x2])
             else:
-                self.window_pos.append(pos)
+                self.window_pos.append([y1, y2, x1, x2])
 
         self.upper_scale, self.lower_scale = scale
         self.init_level = init_level
@@ -32,7 +36,7 @@ class Detector(object):
         self.backgrounds = []
         self.p = 0.1
         self.t = 3
-        self.d = 30
+        self.d = 25
 
     @property
     def cur_level(self):
