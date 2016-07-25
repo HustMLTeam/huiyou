@@ -20,7 +20,7 @@ class Detector(object):
             x1 = avg - 4
             x2 = avg + 4
             if y1 < init_level < y2:
-                self.window_pos.append([init_level + 1, y2, x1, x2])
+                self.window_pos.append([init_level, y2, x1, x2])
                 self.window_pos.append([y1, init_level, x1, x2])
             else:
                 self.window_pos.append([y1, y2, x1, x2])
@@ -75,7 +75,6 @@ class Detector(object):
     def detect_level(self):
         result = []
         white = None
-        threshold = 33
         for i, (y_start, y_end, x_start, x_end) in enumerate(self.window_pos):
             window = self.frame[y_start:y_end, x_start:x_end]
             window = window + self.first_avg - self.cur_avg
@@ -85,14 +84,15 @@ class Detector(object):
             y1 = int(max(self.cur_level - self.d, y_start) - y_start)
             y2 = int(min(self.cur_level + self.d, y_end) - y_start)
             if y1 < y2 and white is None:
-                if foreground.mean() > 15:
+                if foreground.mean() > 18:
                     white = y2 + y_start
                 else:
                     sobel = cv2.Sobel(foreground[y1:y2], cv2.CV_16S, 0, 1)
-                    threshold = max(self.backgrounds[i].std() * 2.5, self.threshold)
                     if y_start < self.init_level:
+                        threshold = max(self.backgrounds[i].std() * 2, self.threshold)
                         sobel = np.where(sobel > threshold, 255, 0).astype('uint8')
                     else:
+                        threshold = max(self.backgrounds[i].std() * 2, 25)
                         sobel = np.where(sobel < -threshold, 255, 0).astype('uint8')
                     sobel_bl = horizontal_filter(sobel)
                     result += list(np.where(sobel_bl)[0] + y_start)

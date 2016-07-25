@@ -184,6 +184,6 @@ class Decision(object):
 
 
 def horizontal_filter(src):
-    result = convolve2d(src, np.ones((1, 5)) / 5, mode='same')
-    result = np.where(result > 200, 255, 0).astype('uint8')
+    result = convolve2d(src, np.ones((1, 4)) / 4, mode='same')
+    result = np.where(result > 250, 255, 0).astype('uint8')
     return result
