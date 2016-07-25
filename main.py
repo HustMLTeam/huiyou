@@ -39,9 +39,6 @@ if __name__ == '__main__':
             tube0.update_backgrounds()
             tube1.update_backgrounds()
 
-        if count < 8000:
-            continue
-
         level = int(tube0.cur_level)
         cv2.line(frame, (45, level), (60, level), (0, 0, 255), 1)
         level = int(tube1.cur_level)
