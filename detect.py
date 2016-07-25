@@ -72,7 +72,7 @@ class Locator(object):
             result = dec.decide(np.array(positions), n_clusters)
             self.window.append(sorted(result, key=lambda t: t[0]))
 
-    def locate_scale(self, ruler):
+    def locate_scale(self):
         for y1, y2, x1, x2 in self.tube:
             ruler = self.image[y1:y2, x1+15:x2+15]
 
