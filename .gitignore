@@ -86,3 +86,6 @@ data/
 #Test file
 test.py
 test.ipynb
+
+#Zip file
+*.zip
