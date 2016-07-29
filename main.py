@@ -4,8 +4,7 @@
 if __name__ == '__main__':
     import numpy as np
     import cv2
-    from detect import Locator
-    from LevelDetector import Detector
+    from detect import Locator, Detector
     loc = None
     speed = 1
     count = 0

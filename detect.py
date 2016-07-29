@@ -6,6 +6,7 @@ from slide_window import slide_window
 import numpy as np
 from scipy.signal import convolve2d
 import cv2
+from collections import deque
 
 
 class Locator(object):

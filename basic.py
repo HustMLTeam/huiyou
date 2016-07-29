@@ -14,6 +14,9 @@ from sklearn.decomposition import PCA
 
 
 class FeatureExtractor(object):
+    """
+    
+    """
     def __init__(self, method='sift', file=None):
         self.method = method
         self.red = None  # 该方法为降维的辅助函数
