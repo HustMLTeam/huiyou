@@ -44,7 +44,7 @@ def slide_window(img_width, img_height, width_min=10, height_min=10,
     Yields
     -------
     tuple
-        滑动窗口位置，格式为(y_start, y_end, x_start, x_end)。
+        滑动窗口位置。
     """
     if not width_max or width_max > img_width:  # find maximum window width
         width_max = img_width

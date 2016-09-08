@@ -48,8 +48,8 @@ class FeatureExtractor(object):
 
     Warning
     -------
-    不要调用sift_train与lbp_train，用train代替；也不要调用sift_extract与
-    lbp_extract，用extract代替。
+    不要调用sift_train与lbp_train，请用train代替；也不要调用sift_extract与
+    lbp_extract，请用extract代替。
 
     Methods
     -------
@@ -333,11 +333,15 @@ class Decision(object):
         Parameters
         ----------
         X : 二维numpy数组
-            所要决策的位置的集合，每一行为一个区域，格式为(y_start, y_end, 
-            x_start, x_end)
+            所要决策的位置的集合，每一行为一个位置。
 
         n : int
             最终得到的位置的个数。
+
+        Returns
+        -------
+        list
+            决策得到的位置。
     """
     def __init__(self, method='max'):
         if method == 'max':
