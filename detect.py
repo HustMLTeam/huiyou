@@ -81,10 +81,10 @@ class Locator(object):
         self.window_classify_method = window_classify
 
         # 加载相应的特征提取器及分类器
-        self.tube_extractor = FeatureExtractor(tube_extract, file='data/pkl/tube_%s.pkl' % tube_extract)
-        self.tube_classifier = Classifier(tube_classify, file='data/pkl/tube_%s_%s.pkl' % (tube_extract, tube_classify))
-        self.window_extractor = FeatureExtractor(window_extract, file='data/pkl/window_%s.pkl' % window_extract)
-        self.window_classifier = Classifier(window_classify, file='data/pkl/window_%s_%s.pkl' % (window_extract, window_classify))
+        # self.tube_extractor = FeatureExtractor(tube_extract, file='data/pkl/tube_%s.pkl' % tube_extract)
+        # self.tube_classifier = Classifier(tube_classify, file='data/pkl/tube_%s_%s.pkl' % (tube_extract, tube_classify))
+        # self.window_extractor = FeatureExtractor(window_extract, file='data/pkl/window_%s.pkl' % window_extract)
+        # self.window_classifier = Classifier(window_classify, file='data/pkl/window_%s_%s.pkl' % (window_extract, window_classify))
 
         self.tube = []
         self.window = []
@@ -96,9 +96,9 @@ class Locator(object):
         """
         positions = [] # 保存液位仪的位置，格式为(y_start, y_end, x_start, x_end)
         height, width = self.image.shape
-        for y_start, y_end, x_start, x_end in slide_window(140, height,
-                                width_min=22, width_max=32, width_inc=3,
-                                height_min=200, height_max=240, height_inc=5,
+        for y_start, y_end, x_start, x_end in slide_window(width, height,
+                                width_min=22*8//3, width_max=32*8//3, width_inc=3,
+                                height_min=200*8//3, height_max=240*8//3, height_inc=5,
                                 ratio_min=7, ratio_max=9):
             feature = self.tube_extractor.extract(self.image[y_start:y_end, x_start:x_end])  # 提取特征
             if self.tube_classifier.classify(feature.reshape(1, -1)):  # 进行分类
@@ -117,8 +117,8 @@ class Locator(object):
             height = y2 - y1
             width = x2 - x1
             for y_start, y_end, x_start, x_end in slide_window(width, height,
-                                    width_min=13, width_max=25, width_inc=3,
-                                    height_min=26, height_max=39, height_inc=3,
+                                    width_min=13*8//3, width_max=25*8//3, width_inc=3,
+                                    height_min=26*8//3, height_max=39*8//3, height_inc=3,
                                     x_step=2, y_step=2):
                 y_start += y1
                 y_end += y1
@@ -208,12 +208,13 @@ class Detector(object):
 
         self.window_pos = []
         for y_start, y_end, x_start, x_end in reversed(window_pos):
-            avg = int((y_start + y_end) / 2)
-            y1 = avg - 12
-            y2 = avg + 12
-            avg = int((x_start + x_end) / 2)
-            x1 = avg - 4
-            x2 = avg + 4
+            # avg = int((y_start + y_end) / 2)
+            # # y1 = avg - 12
+            # # y2 = avg + 12
+            # avg = int((x_start + x_end) / 2)
+            # # x1 = avg - 4
+            # # x2 = avg + 4
+            x1, x2, y1, y2 = x_start, x_end, y_start, y_end
             if y1 < init_level < y2:
                 self.window_pos.append([init_level, y2, x1, x2])
                 self.window_pos.append([y1, init_level, x1, x2])

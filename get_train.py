@@ -24,7 +24,7 @@ def getPos():
            (86, 145, 107, 180),
            (87, 180, 109, 215),
            (90, 216, 110, 245)]
-    
+
     count = 0
     cap = cv2.VideoCapture('./data/tube.mp4')
     dire = './data/window/pos/'
