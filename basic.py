@@ -10,7 +10,6 @@ basic
 import numpy as np
 from scipy.signal import convolve2d
 from skimage.feature import local_binary_pattern
-from cv2.xfeatures2d import SIFT_create
 from sklearn.cluster import KMeans
 from sklearn.svm import SVC
 from sklearn.externals import joblib
@@ -38,41 +37,18 @@ class FeatureExtractor(object):
 
     Parameters
     ----------
-    method : str
-        特征提取的方法，可以为'sift'或'lbp'。如果为'sift'将提取sift描述子作为特
-        征向量；如果为'lbp'将提取lbp特征作为特征向量。
-
     file : str，可选
         指定特定的文件从而加载特征提取器。如果是要训练特征提取器，可以省略这一
         参数。
 
-    Warning
-    -------
-    不要调用sift_train与lbp_train，请用train代替；也不要调用sift_extract与
-    lbp_extract，请用extract代替。
-
-    Methods
-    -------
-    train(...)
-        训练特征提取器，根据method的不同，该方法是sift_train或lbp_train的别名。
-        在使用时调用该方法而不要调用sift_train或lbp_train。
-    
-    extract(...)
-        提取特征，根据method的不同，该方法是sift_extract或lbp_extract的别名。
-        在使用时调用该方法而不要调用sift_extract或lbp_extract。
-    
     """
-    def __init__(self, method='sift', file=None):
-        self.method = method
+    def __init__(self, file=None):
         self.red = None  # 该方法为降维的辅助函数
-        if self.method == 'sift':
-            self.train = self.sift_train
-            self.extract = self.sift_extract
-        elif self.method == 'lbp':
-            self.train = self.lbp_train
-            self.extract = self.lbp_extract
         if file is not None:
             self.load(file)
+
+    def __call__(self, image):
+        return self.extract(image)
 
     def load(self, file):
         """
@@ -99,61 +75,7 @@ class FeatureExtractor(object):
         else:
             return False
 
-    def sift_train(self, images, n_clusters=120, n_jobs=-1):
-        """
-        利用SIFT，训练特征提取器(训练KMeans)
-
-        只利用SIFT得到描述子是不够的，因为每幅图片的描述子维度太高而且数量不一
-        致，所以利用词袋模型将这些描述子聚类得到直方图。该方法就是训练聚类器，
-        以便能从描述子得到最终的直方图。    
-
-        Parameters
-        ----------
-        images : 列表
-            要用来训练的图片的集合。列表中的每个图片都是二维的numpy数组（灰度
-            图）。
-
-        c_clusters : int
-            描述子聚类的类数，即特征向量的维度。
-
-        n_jobs : int
-            训练时用到的CPU核心数，如果是-1则使用全部核心。
-        """
-        sift = SIFT_create()
-        descs = np.array([sift.detectAndCompute(img, None)[1] for img in images])
-        # Sometimes descriptor is None, turn it into np.ndarray type.
-        descs = [d if isinstance(d, np.ndarray) else
-                np.array([]).reshape(0, 128).astype('float32') for d in descs]
-        # 训练好的聚类器放入self.red
-        self.red = KMeans(n_clusters=n_clusters, n_jobs=n_jobs,
-                          random_state=42).fit(np.vstack(descs))
-
-    def sift_extract(self, image):
-        """
-        利用SIFT，对给定的图片提取特征向量。使用前必须先初始化特征提取器。
-
-        Parameters
-        ----
-        image : 二维numpy数组
-            灰度图。
-
-        Returns
-        -------
-        一维numpy数组
-            图片的特征向量。
-        """
-        assert self.red, "self.red should be initial!"
-        n_clusters = self.red.n_clusters  # 聚类的数量
-        features = np.zeros(n_clusters)   # 提取到的特征
-        sift = SIFT_create()
-        descriptors = sift.detectAndCompute(image, None)[1]
-        if descriptors is None:  # 如果没有找到一个描述子，就返回全是0的数组
-            return features
-        y = self.red.predict(descriptors)  # 对描述子聚类
-        features[list(set(y))] = 1  # 得到最终的特征
-        return features
-
-    def lbp_train(self, images, n_components=0.95):
+    def train(self, images, n_components=0.95):
         """
         利用LBP，训练特征提取器(训练PCA)
 
@@ -196,7 +118,7 @@ class FeatureExtractor(object):
         self.red = PCA(n_components=n_components)
         self.red.fit(X)
 
-    def lbp_extract(self, image):
+    def extract(self, image):
         """
         利用LBP，对给定的图片提取特征向量。使用前必须先初始化特征提取器。
 
@@ -244,20 +166,18 @@ class Classifier(object):
 
     Parameters
     ----------
-    classify_method : str
-        特征提取的方法，如果为'svm'将利用SVM作为分类的方法。目前只能使用SVM作为
-        分类方法。
-
     file : str
         指定特定的文件从而加载分类器。如果是要训练特征提取器，可以省略这一参数。
     """
-    def __init__(self, classify_method='svm', file=None):
-        self.classify_method = classify_method
+    def __init__(self, file=None):
         # initial classifier from file
         if file:
             self.clf = joblib.load(file)
         else:
             self.clf = None
+
+    def __call__(self, features):
+        return self.classify(features)
 
     def is_initialized(self):
         """
@@ -343,7 +263,7 @@ class Decision(object):
         list
             决策得到的位置。
     """
-    def __init__(self, method='max'):
+    def __init__(self, method='average'):
         if method == 'max':
             self.decide = self._max_cover
         elif method == 'min':
@@ -394,21 +314,26 @@ class Decision(object):
         return result
 
 
-def horizontal_filter(src):
+def horizontal_filter(src, leng, num):
     """
     横向滤波。对二值化（0,255）的灰度图进行处理，得到新的二值化的灰度图。
-    如果某像素点横向连续有4个都是255，那么该像素点对应的点的值为255，否则为0。
+    如果某灰度图横向leng个点有num个像素点都是255，那么该像素点对应的点的值为255，否则为0。
 
     Parameters
     ----------
     src : 二维numpy数组
         二值化的灰度图。
+    leng : int
+    	检测的长度
+    num : int
+    	检测范围内值为255的点的个数
 
     Returns
     -------
     二维numpy数组
         经过处理后的图像。
     """
-    result = convolve2d(src, np.ones((1, 4)) / 4, mode='same')
-    result = np.where(result > 250, 255, 0).astype('uint8')
+    result = convolve2d(src, np.ones((1, leng)) / leng, mode='same')
+    thresh = 255 * num / leng - 1
+    result = np.where(result > thresh, 255, 0).astype('uint8')
     return result

@@ -12,7 +12,7 @@ from slide_window import slide_window
 import numpy as np
 from scipy.signal import convolve2d
 import cv2
-from collections import deque
+from collections import deque, Counter
 
 
 class Locator(object):
@@ -30,7 +30,6 @@ class Locator(object):
     loc_window和loc_scale。例如：
 
       >>> loc = Locator(Image)
-      >>> loc.locate_tube()
       >>> loc.locate_window()
       >>> loc.locate_scale()
 
@@ -66,101 +65,119 @@ class Locator(object):
         液位仪两个刻度的位置。
 
     """
-    def __init__(self, image, tube_extract='sift', tube_classify='svm',
-                 window_extract='lbp', window_classify='svm'):
+    def __init__(self, image, total):
         self.image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image
-        # 确保参数正确，参数为特征提取和分类的方法
-        assert tube_extract in ['sift', 'lbp'], 'Tube extract method should be "sift" or "lbp"'
-        assert window_extract in ['sift', 'lbp'], 'Window extract method should be "sift" or "lbp"'
-        assert tube_classify in ['svm'], 'Tube classify method should be "svm"'
-        assert window_classify in ['svm'], 'Window classify method should be "svm"'
-
-        self.tube_extract_method = tube_extract
-        self.tube_classify_method = tube_classify
-        self.window_extract_method = window_extract
-        self.window_classify_method = window_classify
+        self.total = total
 
         # 加载相应的特征提取器及分类器
-        # self.tube_extractor = FeatureExtractor(tube_extract, file='data/pkl/tube_%s.pkl' % tube_extract)
-        # self.tube_classifier = Classifier(tube_classify, file='data/pkl/tube_%s_%s.pkl' % (tube_extract, tube_classify))
-        # self.window_extractor = FeatureExtractor(window_extract, file='data/pkl/window_%s.pkl' % window_extract)
-        # self.window_classifier = Classifier(window_classify, file='data/pkl/window_%s_%s.pkl' % (window_extract, window_classify))
+        self.extractor = FeatureExtractor(file='data/pkl/window_lbp.pkl')
+        self.classifier = Classifier(file='data/pkl/window_lbp_svm.pkl')
 
-        self.tube = []
-        self.window = []
+        self.window = [[], []]
         self.scale = []
-
-    def locate_tube(self):
-        """
-        定位液位仪。定位后的结果存放在tube属性中。
-        """
-        positions = [] # 保存液位仪的位置，格式为(y_start, y_end, x_start, x_end)
-        height, width = self.image.shape
-        for y_start, y_end, x_start, x_end in slide_window(width, height,
-                                width_min=22*8//3, width_max=32*8//3, width_inc=3,
-                                height_min=200*8//3, height_max=240*8//3, height_inc=5,
-                                ratio_min=7, ratio_max=9):
-            feature = self.tube_extractor.extract(self.image[y_start:y_end, x_start:x_end])  # 提取特征
-            if self.tube_classifier.classify(feature.reshape(1, -1)):  # 进行分类
-                positions.append((y_start, y_end, x_start, x_end))
-        # 在大量找到的区域中选出合适的结果
-        dec = Decision('max')
-        result = dec.decide(np.array(positions), 2)
-        self.tube = sorted(result, key=lambda t: t[2])
 
     def locate_window(self):
         """
         定位窗口。定位的结果存放在window属性中。
         """
-        for i, (y1, y2, x1, x2) in enumerate(self.tube):
-            positions = []
-            height = y2 - y1
-            width = x2 - x1
-            for y_start, y_end, x_start, x_end in slide_window(width, height,
-                                    width_min=13*8//3, width_max=25*8//3, width_inc=3,
-                                    height_min=26*8//3, height_max=39*8//3, height_inc=3,
-                                    x_step=2, y_step=2):
-                y_start += y1
-                y_end += y1
-                x_start += x1
-                x_end += x1
-                img = self.image[y_start:y_end, x_start:x_end]
-                feature = self.window_extractor.extract(img)
-                if self.window_classifier.classify(feature.reshape(1, -1)):
-                    positions.append((y_start, y_end, x_start, x_end))
-            dec = Decision('average')
-            n_clusters = 5 if i == 0 else 7
-            result = dec.decide(np.array(positions), n_clusters)
-            self.window.append(sorted(result, key=lambda t: t[0]))
+        positions = []
+        height, width = self.image.shape
+        for y_start, y_end, x_start, x_end in slide_window(width, height,
+                            width_min=13*8//3, width_max=25*8//3, width_inc=3,
+                            height_min=26*8//3, height_max=39*8//3, height_inc=3,
+                            x_step=2, y_step=2):
+            img = self.image[y_start:y_end, x_start:x_end]
+            feature = self.extractor(img)
+            if self.classifier(feature.reshape(1, -1)):
+                positions.append((y_start, y_end, x_start, x_end))
+        dec = Decision('average')
+        result = dec.decide(np.array(positions), self.total)
+        result.sort(key=lambda t: t[2])
+        mid = (result[0][2] + result[-1][2]) / 2
+        for pos in result:
+            if pos[2] < mid:
+                self.window[0].append(pos)
+            else:
+                self.window[1].append(pos)
+        self.window[0].sort(key=lambda t: t[0])
+        self.window[1].sort(key=lambda t: t[0])
+        self.window[0] = self.relocate_window(self.window[0])
+        self.window[1] = self.relocate_window(self.window[1])
+
+    def relocate_window(self, window):
+        """
+        重新定位窗口
+        :param window:
+        :return:
+        """
+        window_num = len(window)
+        avg_dist = int((sum(window[-1][:2]) - sum(window[0][:2])) / (2 * (window_num - 1)))
+        width = int(avg_dist * 0.15)
+        window = [(y1, y2, int((x1+x2)/2-width), int((x1+x2)/2+width))
+                  for y1, y2, x1, x2 in window]
+        sobel = np.zeros(self.image.shape)
+        for y1, y2, x1, x2 in window:
+            tmp = cv2.Sobel(self.image[y1:y2, x1:x2], cv2.CV_16S, 0, 1)
+            tmp = np.where(tmp < -50, 255, 0).astype('uint8')
+            tmp = horizontal_filter(tmp, width//2, width//2)
+            sobel[y1:y2, x1:x2] = tmp
+        points = np.where(sobel)[0]
+        y_start = [None] * window_num
+        i = window_num
+        for y1, y2, x1, x2 in reversed(window):
+            i -= 1
+            y2 = int((y2 - y1) / 3 + y1)
+            l = [y for y in points if y1 < y < y2]
+            if l and (i == window_num - 1 or y_start[i+1] is None):
+                y_start[i] = max(set(l), key=l.count)
+            elif i < window_num - 1 and y_start[i+1] is not None:
+                mid = y_start[i+1] - avg_dist
+                for gap in range(3, 15, 3):
+                    search = [y for y in l if mid - gap < y < mid + gap]
+                    if search:
+                        y_start[i] = max(set(search), key=search.count)
+                        break
+                y_start[i] = y_start[i+1] - avg_dist
+        for i in range(window_num-1):
+            if y_start[i+1] is None:
+                y_start[i+1] = y_start[i] + avg_dist
+        y_start = [y+3 for y in y_start]
+        y_end = []
+        for i in range(window_num-1):
+            y_end.append(int((y_start[i+1] - y_start[i]) * 2 / 3 + y_start[i]))
+        y_end.append(y_end[i] + avg_dist)
+        y_end = [y-3 for y in y_end]
+        return [(y_start[i], y_end[i], window[i][2], window[i][3]) for i in range(window_num)]
 
     def locate_scale(self):
         """
         定位刻度。定位的结果存放在scale属性中。
         """
-        for y1, y2, x1, x2 in self.tube:
-            ruler = self.image[y1:y2, x1+15:x2+15]
+        for window in self.window:
+            window_num = len(window)
+            dist = (sum(window[-1][:2]) - sum(window[0][:2])) / (2 * (window_num - 1))
+            y1 = window[0][0]
+            y2 = window[-1][1]
+            x1 = max(w[3] for w in window)
+            x2 = int(x1 + dist / 2)
+            ruler = self.image[y1:y2, x1:x2]
 
-            conv = convolve2d(ruler, np.array([
-                        [1, 1, 1, 1, 1, 1, 1, 1],
-                        [1, 1, 1, 1, 1, 1, 1, 1],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [-4, -4, -4, -4, -4, -4, -4, -4],
-                        [0, 0, 0, 0, 0, 0, 0, 0],
-                        [1, 1, 1, 1, 1, 1, 1, 1],
-                        [1, 1, 1, 1, 1, 1, 1, 1]]) / 64, mode='same') - \
-                   np.abs(convolve2d(ruler, np.array([
-                       [1, 1, 1, 1, 1, 1, 1, 1],
-                       [1, 1, 1, 1, 1, 1, 1, 1],
-                       [0, 0, 0, 0, 0, 0, 0, 0],
-                       [0, 0, 0, 0, 0, 0, 0, 0],
-                       [0, 0, 0, 0, 0, 0, 0, 0],
-                       [-1, -1, -1, -1, -1, -1, -1, -1],
-                       [-1, -1, -1, -1, -1, -1, -1, -1]]) / 32, mode='same'))
-
-            filtered = horizontal_filter(np.where(conv > 15, 255, 0))
-            upper_scale = np.median(np.where(filtered[75:125] == 255)[0]) + 75
-            lower_scale = np.median(np.where(filtered[175:225] == 255)[0]) + 175
-
+            t = int(dist / 4)
+            conv = convolve2d(ruler, np.array([[1], [1], [0], [-4], [0], [1], [1]]).
+                              repeat(t, axis=1) / (8 * t), mode='same') - \
+                   np.abs(convolve2d(ruler, np.array([[1], [1], [0], [0], [0],
+                                                      [-1], [-1]]).
+                                     repeat(8, axis=1) / (4 * t), mode='same'))
+            leng = int(dist / 8.5)
+            filtered = horizontal_filter(np.where(conv > 15, 255, 0), leng, leng)
+            c = Counter(np.where(filtered)[0])
+            high, low = sorted(d[0] for d in c.most_common(2))
+            if low - high > 2 * dist:
+                upper_scale = high + y1
+                lower_scale = low + y1
+            else:
+                upper_scale = high + y1
+                lower_scale = (low - high) * 2 + high + y1
             self.scale.append([upper_scale, lower_scale])
 
 
@@ -203,37 +220,24 @@ class Detector(object):
     level_scale : float
         当前液面的实际位置。
     """
-    def __init__(self, tube_pos, window_pos, scale, init_level, threshold):
-        self.tube_pos = tube_pos
-
-        self.window_pos = []
-        for y_start, y_end, x_start, x_end in reversed(window_pos):
-            # avg = int((y_start + y_end) / 2)
-            # # y1 = avg - 12
-            # # y2 = avg + 12
-            # avg = int((x_start + x_end) / 2)
-            # # x1 = avg - 4
-            # # x2 = avg + 4
-            x1, x2, y1, y2 = x_start, x_end, y_start, y_end
-            if y1 < init_level < y2:
-                self.window_pos.append([init_level, y2, x1, x2])
-                self.window_pos.append([y1, init_level, x1, x2])
-            else:
-                self.window_pos.append([y1, y2, x1, x2])
+    def __init__(self, window_pos, scale, init_level=None, threshold=None):
+        self.window_pos = window_pos
+        self.window_num = len(window_pos)
+        self.avg_dist = (sum(window_pos[-1][:1]) - sum(window_pos[0][:1])) / (self.window_num - 1) / 2
 
         self.upper_scale, self.lower_scale = scale
-        self.init_level = init_level
-        self.threshold = threshold
+        self.init_level = init_level if init_level else window_pos[-1][1]
+        self.threshold = threshold if threshold else 30
 
         self.levels = deque([self.init_level] * 40, maxlen=40)
 
         self.frame = None
-        self.first_avg = None
-        self.cur_avg = None
-        self.backgrounds = []
+        self.windows = [None] * self.window_num
+        self.backgrounds = None
         self.p = 0.1
         self.t = 3
-        self.d = 25
+        self.d = int(self.avg_dist / 4)
+        self.count = 0
 
     @property
     def cur_level(self):
@@ -257,51 +261,93 @@ class Detector(object):
             当前帧的BGR图像。
         """
         if frame.ndim == 3:
-            frame = frame[:, :, 0]
+            self.frame = frame[:, :, 0]
+        elif frame.ndim == 2:
+            self.frame = frame
 
         self.frame = frame.astype('float64')
-        self.cur_avg = frame[self.tube_pos[0]:self.tube_pos[1], self.tube_pos[2]:self.tube_pos[3]].mean()
-        if self.first_avg is None:
-            self.first_avg = self.cur_avg
-            for y_start, y_end, x_start, x_end in self.window_pos:
-                self.backgrounds.append(frame[y_start:y_end, x_start:x_end].astype('float64'))
+        for i, (y1, y2, x1, x2) in enumerate(self.window_pos):
+            self.windows[i] = self.frame[y1:y2, x1:x2]
+        level = self.detect_blue()
+        if level:
+            self.levels.extend([level]*40)
+            self.init_level = self.cur_level
+            self.backgrounds = None
+            self.count = 0
         else:
-            self.detect_level()
+            self.count += 1
+            if not self.count % 20:
+                self.update_backgrounds()
+            level = self.detect_foreground()
+            if level:
+                self.levels.append(level)
 
-    def detect_level(self):
+    def detect_blue(self):
+        i = self.window_num
+        for window in reversed(self.windows[1:]):
+            i -= 1
+            w_bl = cv2.medianBlur(window, 5)
+            w_edge = cv2.Sobel(w_bl, cv2.CV_16S, 0, 1)
+            w_edge = np.where(w_edge < - 50, 255, 0)
+            length = int(self.avg_dist / 8)
+            w_edge_fil = horizontal_filter(w_edge, length, length)
+            if np.any(w_edge_fil):
+                return int(np.median(np.where(w_edge_fil)[0])) + self.window_pos[i][0]
+        return None
+
+    def detect_foreground(self):
         """
         液面检测。
 
         由feed方法调用。
         """
-        result = []
-        white = None
-        for i, (y_start, y_end, x_start, x_end) in enumerate(self.window_pos):
-            window = self.frame[y_start:y_end, x_start:x_end]
-            window = window + self.first_avg - self.cur_avg
-            foreground = abs(window - self.backgrounds[i])
-            foreground[foreground <= self.t] = 0
+        if self.backgrounds is None:
+            self.backgrounds = self.windows
 
-            y1 = int(max(self.cur_level - self.d, y_start) - y_start)
-            y2 = int(min(self.cur_level + self.d, y_end) - y_start)
-            if y1 < y2 and white is None:
-                if foreground.mean() > 18:
-                    white = y2 + y_start
-                else:
-                    sobel = cv2.Sobel(foreground[y1:y2], cv2.CV_16S, 0, 1)
-                    if y_start < self.init_level:
-                        threshold = max(self.backgrounds[i].std() * 2, self.threshold)
-                        sobel = np.where(sobel > threshold, 255, 0).astype('uint8')
-                    else:
-                        threshold = max(self.backgrounds[i].std() * 2, 25)
-                        sobel = np.where(sobel < -threshold, 255, 0).astype('uint8')
-                    sobel_bl = horizontal_filter(sobel)
-                    result += list(np.where(sobel_bl)[0] + y_start)
+        foreground = [np.abs(self.windows[i] - self.backgrounds[i]) for i in range(self.window_num)]
+        sobel = []
+        for i in range(self.window_num):
+            fore = np.uint8(foreground[i])
+            fore = cv2.medianBlur(fore, 3)
+            y1, y2, x1, x2 = self.window_pos[i]
+            s = cv2.Sobel(fore, cv2.CV_16S, 0, 1)
+            if y2 <= self.init_level:
+                s = np.where(s > self.threshold, 255, 0)
+                s = horizontal_filter(s, 6, 6)
+                sobel.extend(y + y1 for y in np.where(s)[0])
+            elif y1 >= self.init_level:
+                s = np.where(s < -self.threshold, 255, 0)
+                s = horizontal_filter(s, 6, 6)
+                sobel.extend(y + y1 for y in np.where(s)[0])
+            else:
+                up = s[:self.init_level-y1-1]
+                up = np.where(up > self.threshold, 255, 0)
+                up = horizontal_filter(up, 6, 6)
+                sobel.extend(y + y1 for y in np.where(up)[0])
+                down = s[self.init_level-y1+1:]
+                down = np.where(down < -self.threshold, 255, 0)
+                down = horizontal_filter(down, 6, 6)
+                sobel.extend(y + y1 for y in np.where(down)[0])
 
-        if result:
-            self.levels.append(np.median(result))
-        elif white is not None:
-            self.levels.append(white)
+        cur_window = self.window_num - 1
+        for i, (y1, y2, x1, x2) in enumerate(self.window_pos):
+            if self.cur_level <= y2:
+                cur_window = i
+                break
+
+        up = self.cur_level - self.d
+        down = self.cur_level + self.d
+        if up < self.window_pos[cur_window][0] and cur_window != 0:
+            up -= self.window_pos[cur_window][0] - self.window_pos[cur_window-1][1]
+        if down > self.window_pos[cur_window][1] and cur_window != self.window_num-1:
+            down += self.window_pos[cur_window+1][0] - self.window_num[cur_window][0]
+
+        select = [y for y in sobel if up <= y <= down]
+
+        if select:
+            return int(np.median(select))
+        else:
+            return None
 
     def update_backgrounds(self):
         """
