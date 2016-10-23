@@ -66,7 +66,8 @@ class Locator(object):
 
     """
     def __init__(self, image, total):
-        self.image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image
+        self.image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) \
+            if image.ndim == 3 else image
         self.total = total
 
         # 加载相应的特征提取器及分类器
@@ -83,8 +84,8 @@ class Locator(object):
         positions = []
         height, width = self.image.shape
         for y_start, y_end, x_start, x_end in slide_window(width, height,
-                            width_min=13*8//3, width_max=25*8//3, width_inc=3,
-                            height_min=26*8//3, height_max=39*8//3, height_inc=3,
+                            width_min=35, width_max=45, width_inc=3,
+                            height_min=70, height_max=100, height_inc=3,
                             x_step=2, y_step=2):
             img = self.image[y_start:y_end, x_start:x_end]
             feature = self.extractor(img)
@@ -101,8 +102,8 @@ class Locator(object):
                 self.window[1].append(pos)
         self.window[0].sort(key=lambda t: t[0])
         self.window[1].sort(key=lambda t: t[0])
-        self.window[0] = self.relocate_window(self.window[0])
-        self.window[1] = self.relocate_window(self.window[1])
+        # self.window[0] = self.relocate_window(self.window[0])
+        # self.window[1] = self.relocate_window(self.window[1])
 
     def relocate_window(self, window):
         """
@@ -223,7 +224,7 @@ class Detector(object):
     def __init__(self, window_pos, scale, init_level=None, threshold=None):
         self.window_pos = window_pos
         self.window_num = len(window_pos)
-        self.avg_dist = (sum(window_pos[-1][:1]) - sum(window_pos[0][:1])) / (self.window_num - 1) / 2
+        self.avg_dist = (sum(window_pos[-1][:2]) - sum(window_pos[0][:2])) / (self.window_num - 1) / 2
 
         self.upper_scale, self.lower_scale = scale
         self.init_level = init_level if init_level else window_pos[-1][1]
@@ -236,7 +237,7 @@ class Detector(object):
         self.backgrounds = None
         self.p = 0.1
         self.t = 3
-        self.d = int(self.avg_dist / 4)
+        self.d = int(self.avg_dist * 0.3)
         self.count = 0
 
     @property
@@ -260,23 +261,23 @@ class Detector(object):
         frame : 三维numpy数组
             当前帧的BGR图像。
         """
+        # 将当前帧转化为蓝色通道图
         if frame.ndim == 3:
-            self.frame = frame[:, :, 0]
+            self.frame = frame[:, :, 0].astype('float64')
         elif frame.ndim == 2:
-            self.frame = frame
+            self.frame = frame.astype('float64')
 
-        self.frame = frame.astype('float64')
         for i, (y1, y2, x1, x2) in enumerate(self.window_pos):
             self.windows[i] = self.frame[y1:y2, x1:x2]
         level = self.detect_blue()
-        if level:
+        if level:   #先在蓝色通道图上找液面
             self.levels.extend([level]*40)
-            self.init_level = self.cur_level
+            self.init_level = level
             self.backgrounds = None
             self.count = 0
-        else:
+        else:       #如果找不到，在前景图上找液面
             self.count += 1
-            if not self.count % 20:
+            if not self.count % 20:     #每20帧更新背景
                 self.update_backgrounds()
             level = self.detect_foreground()
             if level:
@@ -286,7 +287,7 @@ class Detector(object):
         i = self.window_num
         for window in reversed(self.windows[1:]):
             i -= 1
-            w_bl = cv2.medianBlur(window, 5)
+            w_bl = cv2.medianBlur(np.uint8(window), 5)
             w_edge = cv2.Sobel(w_bl, cv2.CV_16S, 0, 1)
             w_edge = np.where(w_edge < - 50, 255, 0)
             length = int(self.avg_dist / 8)
@@ -301,50 +302,61 @@ class Detector(object):
 
         由feed方法调用。
         """
+        # 如果没有背景图，添加背景，并开始计数
         if self.backgrounds is None:
-            self.backgrounds = self.windows
+            print('init')
+            self.backgrounds = self.windows[:]
+            self.count = 1
 
-        foreground = [np.abs(self.windows[i] - self.backgrounds[i]) for i in range(self.window_num)]
-        sobel = []
+        # 在所有窗口前景中寻找边缘
+        sobel = []      # 保存所有窗口中符合条件的点的纵坐标
         for i in range(self.window_num):
-            fore = np.uint8(foreground[i])
+            fore = np.abs(self.windows[i] - self.backgrounds[i]).astype('uint8')
             fore = cv2.medianBlur(fore, 3)
             y1, y2, x1, x2 = self.window_pos[i]
-            s = cv2.Sobel(fore, cv2.CV_16S, 0, 1)
-            if y2 <= self.init_level:
+            y1 += 2
+            y2 -= 2
+            s = cv2.Sobel(fore[2:-2], cv2.CV_16S, 0, 1)
+            if y2 <= self.init_level:       # 如果是在初始线以上，只寻找大于0的梯度
                 s = np.where(s > self.threshold, 255, 0)
                 s = horizontal_filter(s, 6, 6)
                 sobel.extend(y + y1 for y in np.where(s)[0])
-            elif y1 >= self.init_level:
+            elif y1 >= self.init_level:     # 如果是在初始线以下，只寻找小于0的梯度
                 s = np.where(s < -self.threshold, 255, 0)
                 s = horizontal_filter(s, 6, 6)
                 sobel.extend(y + y1 for y in np.where(s)[0])
             else:
+                # 在初始线以上寻找大于0的梯度
                 up = s[:self.init_level-y1-1]
                 up = np.where(up > self.threshold, 255, 0)
                 up = horizontal_filter(up, 6, 6)
                 sobel.extend(y + y1 for y in np.where(up)[0])
+                # 在初始线以下寻找小于0的梯度
                 down = s[self.init_level-y1+1:]
                 down = np.where(down < -self.threshold, 255, 0)
                 down = horizontal_filter(down, 6, 6)
                 sobel.extend(y + y1 for y in np.where(down)[0])
 
+        # 找到当前液位所在的窗口
         cur_window = self.window_num - 1
         for i, (y1, y2, x1, x2) in enumerate(self.window_pos):
             if self.cur_level <= y2:
                 cur_window = i
                 break
 
+        # 缩小范围
         up = self.cur_level - self.d
         down = self.cur_level + self.d
         if up < self.window_pos[cur_window][0] and cur_window != 0:
             up -= self.window_pos[cur_window][0] - self.window_pos[cur_window-1][1]
         if down > self.window_pos[cur_window][1] and cur_window != self.window_num-1:
-            down += self.window_pos[cur_window+1][0] - self.window_num[cur_window][0]
+            down += self.window_pos[cur_window+1][0] - self.window_pos[cur_window][0]
 
+        # 确定最终留下来的点
         select = [y for y in sobel if up <= y <= down]
 
         if select:
+            # 选取中位数作为最终的结果
             return int(np.median(select))
         else:
             return None
