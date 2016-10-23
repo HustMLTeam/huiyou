@@ -89,8 +89,8 @@ class Locator(object):
                 self.window[1].append(pos)
         self.window[0].sort(key=lambda t: t[0])
         self.window[1].sort(key=lambda t: t[0])
-        # self.window[0] = self.relocate_window(self.window[0])
-        # self.window[1] = self.relocate_window(self.window[1])
+        self.window[0] = self.relocate_window(self.window[0])
+        self.window[1] = self.relocate_window(self.window[1])
 
     def relocate_window(self, window):
         """
