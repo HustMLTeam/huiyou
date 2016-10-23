@@ -70,9 +70,10 @@ class Locator(object):
         positions = []
         height, width = self.image.shape
         for y_start, y_end, x_start, x_end in slide_window(width, height,
-                            width_min=35, width_max=45, width_inc=3,
-                            height_min=70, height_max=100, height_inc=3,
-                            x_step=2, y_step=2):
+                            # width_min=35, width_max=45, width_inc=3,
+                            # height_min=70, height_max=100, height_inc=3,
+                            # x_step=2, y_step=2
+                            ratio_min=1.3, ratio_max=2.3):
             img = self.image[y_start:y_end, x_start:x_end]
             feature = self.extractor(img)
             if self.classifier(feature.reshape(1, -1)):
