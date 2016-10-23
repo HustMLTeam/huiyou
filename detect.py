@@ -19,17 +19,16 @@ class Locator(object):
     """
     **定位器**
 
-    利用视频第一帧的图片找到两个液位仪的位置，第一个液位仪5个窗口的位置和第二个
-    液位仪7个窗口的位置，以及两个液位仪刻度线的位置。
+    利用视频第一帧的图片找到各个窗口的位置，以及两个液位仪刻度线的位置。
 
     定位的方法为利用滑动窗口，从图片中得到一个个小图片，然后利用特征提取器提取
     其特征向量，并利用分类器判断其是否符合条件。最后用决策器从所有符合条件的位
     置中得到最终的结果。
 
-    使用时要用视频的第一帧图片实例化一个定位器，先调用loc_tube，再调用
-    loc_window和loc_scale。例如：
+    使用时要用视频的第一帧图片实例化一个定位器，先调用loc_window，再调用
+    loc_scale。例如：
 
-      >>> loc = Locator(Image)
+      >>> loc = Locator(Image, 12)
       >>> loc.locate_window()
       >>> loc.locate_scale()
 
@@ -38,24 +37,11 @@ class Locator(object):
     image : 二维numpy数组
         视频第一帧的灰度图。
 
-    tube_extract : str
-        提取液位仪特征向量的方法。可以为'sift'或'lbp'，默认为'sift'。
-
-    tube_classify : str
-        对液位仪分类的方法。可以为'svm'，默认为'svm'。
-
-    window_extract : str
-        提取窗口特征的方法。可以为'sift'或'lbp'，默认为'lbp'。
-
-    window_classify : str
-        对窗口分类的方法。可以为'svm'，默认为'svm'。
+    total : int
+        窗口的个数
 
     Attributes
     ----------
-    tube : list
-        两个液位仪的位置。第一个元素是第一个液位仪的位置，第二个元素是第二个液
-        位仪的位置。
-
     window : list
         窗口的位置。第一个元素是第一个液位仪上的窗口的位置，第二个元素是第二个
         液位仪上的窗口的位置。
@@ -107,15 +93,28 @@ class Locator(object):
 
     def relocate_window(self, window):
         """
-        重新定位窗口
-        :param window:
-        :return:
+        重新定位窗口。
+
+        利用滑动窗口对各个窗口进行定位，得到的窗口范围会比较大，位置仍然会有些偏差，这时对窗口进行重新定位，以得到更加准确的结果。
+
+        Parameters
+        ----------
+        window : list
+            初步定位得到的窗口位置。
+
+        Returns
+        -------
+        list
+            精确定位得到的窗口位置。
         """
         window_num = len(window)
         avg_dist = int((sum(window[-1][:2]) - sum(window[0][:2])) / (2 * (window_num - 1)))
+        # 重新设定窗口宽度
         width = int(avg_dist * 0.15)
         window = [(y1, y2, int((x1+x2)/2-width), int((x1+x2)/2+width))
                   for y1, y2, x1, x2 in window]
+
+        # 寻找窗口的上边缘
         sobel = np.zeros(self.image.shape)
         for y1, y2, x1, x2 in window:
             tmp = cv2.Sobel(self.image[y1:y2, x1:x2], cv2.CV_16S, 0, 1)
@@ -143,6 +142,8 @@ class Locator(object):
             if y_start[i+1] is None:
                 y_start[i+1] = y_start[i] + avg_dist
         y_start = [y+3 for y in y_start]
+
+        # 确定窗口的下边缘
         y_end = []
         for i in range(window_num-1):
             y_end.append(int((y_start[i+1] - y_start[i]) * 2 / 3 + y_start[i]))
@@ -186,8 +187,13 @@ class Locator(object):
 class Detector(object):
     """
     **液面检测器**
-    
-    利用背景差法进行液位检测。先取第一帧作为背景，以后每一帧减去背景就能得到前
+
+    分别在蓝色通道图和前景上进行液位检测。
+
+    在蓝色通道图上进行液位检测时，对每个窗口求竖直梯度，并且只保留由上到下从白
+    色过度到黑色的梯度，如果发现较长的边缘，则该边缘为当前液面。
+
+    利用背景差法进行液位检测时，先取第一帧作为背景，以后每一帧减去背景就能得到前
     景，在前景上利用Sobel算子进行竖直方向上的梯度检测，当梯度的绝对值大于一定值
     时就可以认为它是边缘，在初始液面以上只需要保留梯度为正的边缘，在初始液面以
     下保留梯度为负的边缘，这个边缘就是液面的位置。为了减少噪声的干扰，还需要对
@@ -196,22 +202,21 @@ class Detector(object):
     找到液面后不直接将其作为当前帧的液面，而是把它放入一个队列中，以这个队列的
     平均值作为当前帧的液面位置，以增强模型的稳定性。
 
+    优先在蓝色通道上寻找液位，如果没有找到，再利用背景差法进行液位检测。
+
     Parameters
     ----------
-    tube_pos : list
-        液位仪的位置。
-
     window_pos : list
         窗口的位置的列表。
 
     scale : list
         两条刻度线的位置，格式为(upper_scale, lower_scale)。
 
-    init_level : int
-        初始液面的位置。
+    init_level : int，可选
+        初始液面的位置。缺省为最下面窗口的下边缘。
 
-    threshold : int
-        用Sobel求梯度后，高于此阀值的将被保留，否则会被舍弃（置为0）。
+    threshold : int，可选
+        用Sobel求梯度后，高于此阀值的将被保留，否则会被舍弃（置为0）。缺省为30.
 
     Attributes
     ----------
@@ -253,8 +258,7 @@ class Detector(object):
         """
         将当前帧传入液面检测器。
 
-        先将当前帧保留蓝色通道作为新的当前帧，在第一帧时初始化参数，随后的帧调
-        用detect_level检测液面。
+        先调用detect_blue方法，如果找不到，再调用detect_background方法。
 
         Parameters
         ----------
@@ -266,6 +270,10 @@ class Detector(object):
             self.frame = frame[:, :, 0].astype('float64')
         elif frame.ndim == 2:
             self.frame = frame.astype('float64')
+        height, width = self.frame.shape
+        y = int(height * 0.88888888888)
+        x = int(width * 0.44444444444)
+        self.frame[y:, :x] = 255
 
         for i, (y1, y2, x1, x2) in enumerate(self.window_pos):
             self.windows[i] = self.frame[y1:y2, x1:x2]
@@ -284,6 +292,11 @@ class Detector(object):
                 self.levels.append(level)
 
     def detect_blue(self):
+        """
+        利用蓝色通道图检测当前液面。
+
+        由feed方法调用。
+        """
         i = self.window_num
         for window in reversed(self.windows[1:]):
             i -= 1
@@ -298,7 +311,7 @@ class Detector(object):
 
     def detect_foreground(self):
         """
-        液面检测。
+        利用背景差法寻找当前液面。
 
         由feed方法调用。
         """

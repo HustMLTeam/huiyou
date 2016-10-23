@@ -4,17 +4,9 @@ trainer
 =======
 该模块为训练模块，利用已有的训练集训练出特征提取器以及分类器，并将结果保存在data/pkl文件夹下。
 
-要训练寻找液位仪的位置
+使用方法
 
-  >>> t = Trainer(extract_method='sift')
-  >>> t.train_tube_extractor()
-  Tube extractor has been trained and saved to "data/pkl".
-  >>> t.train_tube_classifier()
-  Tube classifier has been trained and saved to "data/pkl".
-
-要训练寻找液位仪小窗口的位置
-
-  >>> t = Trainer(extract_method='lbp')
+  >>> t = Trainer()
   >>> t.train_window_extractor()
   Window extractor has been trained and saved to "data/pkl".
   >>> t.train_window_classifier()
