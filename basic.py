@@ -116,9 +116,9 @@ class FeatureExtractor(object):
             for i in range(2):
                 for j in range(3):
                     cell = img[h * j:h * (j + 1), w * i:w * (i + 1)]
-                    lbp = local_binary_pattern(cell, 8, 1)
-                    histogram = np.zeros(256)
-                    for pattern in lbp.ravel():  # 求得直方图
+                    lbp = local_binary_pattern(cell, 8, 1)  # 求局部二值模式
+                    histogram = np.zeros(256)   # 256维的直方图
+                    for pattern in lbp.ravel(): # 求得直方图
                         histogram[int(pattern)] += 1
                     histogram = (histogram - histogram.mean()) / histogram.std()  # 将直方图归一化
                     feature = np.hstack((feature, histogram))
@@ -148,6 +148,7 @@ class FeatureExtractor(object):
         w = width // 2
         h = height // 3
         feature = np.array([])
+        # 过程和self.train类似，分成六个区域，分别求特征后合并
         for i in range(2):
             for j in range(3):
                 cell = image[h*j:h*(j+1), w*i:w*(i+1)]
@@ -157,6 +158,7 @@ class FeatureExtractor(object):
                     histogram[int(pattern)] += 1
                 histogram = (histogram - histogram.mean()) / histogram.std()
                 feature = np.hstack((feature, histogram))
+        # 利用PCA降维
         feature = self.red.transform(feature.reshape(1, -1))
         return feature.ravel()
 
@@ -285,8 +287,13 @@ class Decision(object):
             self.decide = self._average_cover
 
     def _max_cover(self, X, n):
-        """最大覆盖"""
-        cluster = KMeans(n, random_state=42, n_jobs=-1)
+        """
+        最大覆盖
+        
+        假设有3个窗口(0, 50, 0, 30), (2, 52, 3, 33)和(1, 54, 3, 30)，
+        最终的结果会把它们都覆盖到，即结果为(0, 54, 0, 33)。
+        """
+        cluster = KMeans(n, random_state=42, n_jobs=-1)     # 利用KMeans将他们分成n类
         X_new = np.vstack((X[:, 0] + X[:, 1], X[:, 2] + X[:, 3])).T
         y = cluster.fit_predict(X_new)
         result = []
@@ -299,8 +306,13 @@ class Decision(object):
         return result
 
     def _min_cover(self, X, n):
-        """最小覆盖"""
-        cluster = KMeans(n, random_state=42, n_jobs=-1)
+        """
+        最小覆盖
+                
+        假设有3个窗口(0, 50, 0, 30), (2, 52, 3, 33)和(1, 54, 3, 30)，
+        最终的结果会取它们共有的部分，即结果为(2, 50, 3, 30)。
+        """
+        cluster = KMeans(n, random_state=42, n_jobs=-1)     # 利用KMeans将他们分成n类
         X_new = np.vstack((X[:, 0] + X[:, 1], X[:, 2] + X[:, 3])).T
         y = cluster.fit_predict(X_new)
         result = []
@@ -313,8 +325,13 @@ class Decision(object):
         return result
 
     def _average_cover(self, X, n):
-        """平均覆盖"""
-        cluster = KMeans(n, random_state=42, n_jobs=-1)
+        """
+        平均覆盖
+        
+        假设有3个窗口(0, 50, 0, 30), (2, 52, 3, 33)和(1, 54, 3, 30)，
+        最终的结果会取它们的平均值，即结果为(1, 52, 2, 31)。
+        """
+        cluster = KMeans(n, random_state=42, n_jobs=-1)     # 利用KMeans将他们分成n类
         X_new = np.vstack((X[:, 0] + X[:, 1], X[:, 2] + X[:, 3])).T
         y = cluster.fit_predict(X_new)
         result = []

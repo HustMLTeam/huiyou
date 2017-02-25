@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Apr 21 10:14:34 2016
-
-@author: 逸川
+该模块用于从视频中取得训练集。
 """
 
 import numpy as np

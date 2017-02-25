@@ -39,12 +39,12 @@ class Trainer(object):
         训练窗口特征提取器。
         """
         if self.window_x is None:
-            self.load_window()
+            self.load_window()  # 加载样本
 
-        self.window_extrct.train(self.window_x)
+        self.window_extrct.train(self.window_x) # 训练特征提取器
         if not os.path.exists('data/pkl'):
             os.makedirs('data/pkl')
-        joblib.dump(self.window_extrct.red, 'data/pkl/window_lbp.pkl')
+        joblib.dump(self.window_extrct.red, 'data/pkl/window_lbp.pkl')  # 保存特征提取器
         print('Window extractor has been trained and saved to "data/pkl".')
 
     def train_window_classifier(self):
@@ -52,14 +52,14 @@ class Trainer(object):
         训练窗口分类器。
         """
         if self.window_x is None:
-            self.load_window()
-        if self.window_extrct.is_initialized():
+            self.load_window()  # 加载样本
+        if not self.window_extrct.is_initialized():
             self.window_extrct.load('data/pkl/window_lbp.pkl')
-        window_x = np.array([self.window_extrct.extract(img) for img in self.window_x])
-        self.window_clf.train(window_x, self.window_y)
+        window_x = np.array([self.window_extrct.extract(img) for img in self.window_x]) # 从利用窗口特征提取器从样本中提取特征
+        self.window_clf.train(window_x, self.window_y)  # 训练窗口分类器
         if not os.path.exists('data/pkl'):
             os.makedirs('data/pkl')
-        joblib.dump(self.window_clf.clf, 'data/pkl/window_lbp_svm.pkl')
+        joblib.dump(self.window_clf.clf, 'data/pkl/window_lbp_svm.pkl') # 保存窗口分类器
         print('Window classifier has been trained and saved to "data/pkl"')
 
     def load_window(self, posdir='data/window/pos', negdir='data/window/neg'):
@@ -74,11 +74,11 @@ class Trainer(object):
         negdir : str
             负样本所在的文件夹路径。
         """
-        pos_files = [os.path.join(posdir, f) for f in os.listdir(posdir)]
-        neg_files = [os.path.join(negdir, f) for f in os.listdir(negdir)]
-        X_pos = np.array([misc.imread(f, mode='L') for f in pos_files])
-        y_pos = np.ones(X_pos.shape[0])
-        X_neg = np.array([misc.imread(f, mode='L') for f in neg_files])
-        y_neg = np.zeros(X_neg.shape[0])
-        self.window_x = np.concatenate((X_pos, X_neg))
+        pos_files = [os.path.join(posdir, f) for f in os.listdir(posdir)]   # 所有正样本的完整路径名
+        neg_files = [os.path.join(negdir, f) for f in os.listdir(negdir)]   # 所有负样本的完整路径名
+        X_pos = np.array([misc.imread(f, mode='L') for f in pos_files])     # 读取正样本
+        y_pos = np.ones(X_pos.shape[0])                                     # 对应的y置为1
+        X_neg = np.array([misc.imread(f, mode='L') for f in neg_files])     # 读取负样本
+        y_neg = np.zeros(X_neg.shape[0])                                    # 对应的y置为0
+        self.window_x = np.concatenate((X_pos, X_neg))                      # 将正负样本合起来
         self.window_y = np.hstack((y_pos, y_neg))
